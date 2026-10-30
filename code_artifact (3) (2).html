@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monochrome Swarm Breakout</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body {
+            background-color: #0d0d0d;
+            color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            background-color: #121212;
+            border: 2px solid #333;
+            box-shadow: 0 0 25px rgba(0,0,0,0.9);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            background-color: #161616;
+            cursor: crosshair;
+        }
+        .hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            font-weight: bold;
+            color: #ccc;
+            pointer-events: none;
+            z-index: 5;
+        }
+        .hud-group {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            pointer-events: auto;
+        }
+        .hud-item {
+            background: rgba(0,0,0,0.7);
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid #444;
+            letter-spacing: 0.5px;
+        }
+        .temp-input-box {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(0,0,0,0.7);
+            padding: 3px 8px;
+            border-radius: 4px;
+            border: 1px solid #555;
+        }
+        .temp-input-box input {
+            width: 45px;
+            background: #222;
+            color: #00e5ff;
+            border: 1px solid #666;
+            border-radius: 3px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 13px;
+            padding: 2px;
+        }
+        .modal {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        .modal-content {
+            background: #1e1e1e;
+            border: 1px solid #444;
+            padding: 25px 30px;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 460px;
+            box-shadow: 0 0 20px rgba(255,255,255,0.08);
+        }
+        .modal h2 { margin-bottom: 12px; color: #fff; font-size: 22px; }
+        .rule-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 13px;
+        }
+        .rule-table th, .rule-table td {
+            border: 1px solid #444;
+            padding: 8px;
+            text-align: center;
+        }
+        .rule-table th { background: #2a2a2a; color: #ddd; }
+        .btn {
+            background: #ffffff;
+            color: #0d0d0d;
+            border: none;
+            padding: 10px 26px;
+            font-weight: bold;
+            font-size: 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: all 0.2s;
+        }
+        .btn:hover { background: #dcdcdc; transform: scale(1.03); }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- 상단 HUD -->
+    <div class="hud">
+        <div class="hud-group">
+            <div class="hud-item" id="score-display">SCORE: 0</div>
+            <div class="hud-item" id="lives-display">LIVES: 3</div>
+            <div class="hud-item" id="stage-display">STAGE: 1</div>
+            <div class="temp-input-box">
+                <label for="temp-input" style="color:#aaa;">TEMP (°C):</label>
+                <input type="number" id="temp-input" value="18" step="1">
+            </div>
+        </div>
+        <div class="hud-group">
+            <div class="hud-item" id="weather-hud">🌤️ 서울 18°C (속도: 보통)</div>
+        </div>
+    </div>
+
+    <!-- 시작 및 안내 모달 -->
+    <div id="start-modal" class="modal">
+        <div class="modal-content">
+            <h2>🧱 무채색 스웜 벽돌깨기</h2>
+            <p style="font-size: 13px; color: #ccc;">실시간 서울 날씨/기온에 따라 공 속도가 달라집니다.</p>
+            <table class="rule-table">
+                <thead>
+                    <tr><th>기온 조건</th><th>공 속도 변화</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>25°C 이상</td><td>⚡ 빠름 (+30%)</td></tr>
+                    <tr><td>10°C ~ 24°C</td><td>🌤️ 보통 (기본)</td></tr>
+                    <tr><td>10°C 미만</td><td>❄️ 느림 (-25%)</td></tr>
+                </tbody>
+            </table>
+            <p style="font-size: 12px; color: #aaa; margin-top: 5px;">
+                💡 클릭 시 <b>EMP 충격파</b> 발동 | 💣/⏳ 파스텔 아티팩트 클릭 수집
+            </p>
+            <button class="btn" onclick="startGame()">게임 시작</button>
+        </div>
+    </div>
+
+    <!-- 게임 오버 / 클리어 모달 -->
+    <div id="game-over-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2 id="over-title">GAME OVER</h2>
+            <p id="over-score" style="font-size: 20px; font-weight: bold; margin: 10px 0; color: #fff;">FINAL SCORE: 0</p>
+            
+            <!-- 점수 아래 실시간 서울 날씨 뱃지 -->
+            <div id="over-weather-badge" style="background: rgba(255,255,255,0.08); padding: 12px; border-radius: 8px; margin: 15px 0; border: 1px solid #444;">
+                <div style="font-size: 12px; color: #aaa; margin-bottom: 4px; letter-spacing: 0.5px;">오늘의 서울 실시간 날씨</div>
+                <div id="over-weather-detail" style="font-size: 15px; font-weight: bold; color: #00e5ff;">🌤️ 맑음 | 18°C</div>
+            </div>
+
+            <button class="btn" onclick="restartGame()">다시 시작</button>
+        </div>
+    </div>
+
+    <canvas id="canvas" width="800" height="600"></canvas>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let score = 0;
+let lives = 3;
+let stage = 1;
+let gameRunning = false;
+let currentTemp = 18;
+let weatherDesc = "맑음";
+let weatherIcon = "🌤️";
+let speedMultiplier = 1.0;
+
+// 눈에 잘 띄는 밝은 화이트 패들
+const paddle = {
+    width: 100,
+    height: 12,
+    x: 350,
+    y: 540,
+    speed: 8,
+    empGauge: 100,
+    maxEmpGauge: 100
+};
+
+let balls = [];
+
+// 벽돌 레이아웃 설정
+const brickRows = 6;
+const brickCols = 10;
+const brickWidth = 68;
+const brickHeight = 20;
+const brickPadding = 8;
+const offsetTop = 60;
+const offsetLeft = 25;
+let bricks = [];
+
+// 아티팩트 (Bomb, Slow) 및 EMP 충격파
+let artifacts = [];
+let empWaves = [];
+
+let rightPressed = false;
+let leftPressed = false;
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'd') rightPressed = true;
+    if (e.key === 'ArrowLeft' || e.key === 'a') leftPressed = true;
+});
+document.addEventListener('keyup', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'd') rightPressed = false;
+    if (e.key === 'ArrowLeft' || e.key === 'a') leftPressed = false;
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    paddle.x = mouseX - paddle.width / 2;
+    if (paddle.x < 0) paddle.x = 0;
+    if (paddle.x + paddle.width > canvas.width) paddle.x = canvas.width - paddle.width;
+});
+
+canvas.addEventListener('click', (e) => {
+    if (!gameRunning) return;
+    const rect = canvas.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+
+    // 아티팩트 클릭 수집
+    for (let i = artifacts.length - 1; i >= 0; i--) {
+        const art = artifacts[i];
+        const dist = Math.hypot(clickX - art.x, clickY - art.y);
+        if (dist <= art.radius + 6) {
+            triggerArtifactEffect(art.type);
+            artifacts.splice(i, 1);
+            return;
+        }
+    }
+
+    // EMP 발동 (게이지 100% 사용)
+    if (paddle.empGauge >= 100) {
+        paddle.empGauge = 0;
+        empWaves.push({
+            x: paddle.x + paddle.width / 2,
+            y: paddle.y,
+            radius: 10,
+            maxRadius: 200,
+            alpha: 1.0
+        });
+    }
+});
+
+// 테스트용 기온 직접 입력 listener
+document.getElementById('temp-input').addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value);
+    if (!isNaN(val)) {
+        updateSpeedByTemp(val);
+    }
+});
+
+function updateSpeedByTemp(temp) {
+    currentTemp = temp;
+    let statusText = "보통";
+    if (temp >= 25) {
+        speedMultiplier = 1.3;
+        statusText = "빠름 (+30%)";
+    } else if (temp < 10) {
+        speedMultiplier = 0.75;
+        statusText = "느림 (-25%)";
+    } else {
+        speedMultiplier = 1.0;
+        statusText = "보통";
+    }
+
+    document.getElementById('weather-hud').innerText = `${weatherIcon} 서울 ${currentTemp}°C (${statusText})`;
+    document.getElementById('over-weather-detail').innerText = `${weatherIcon} ${weatherDesc} | ${currentTemp}°C (${statusText})`;
+
+    balls.forEach(b => {
+        const currentSpeed = Math.hypot(b.dx, b.dy);
+        const targetSpeed = b.baseSpeed * speedMultiplier;
+        if (currentSpeed > 0) {
+            b.dx = (b.dx / currentSpeed) * targetSpeed;
+            b.dy = (b.dy / currentSpeed) * targetSpeed;
+        }
+    });
+}
+
+async function fetchSeoulWeather() {
+    try {
+        const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.9780&current_weather=true');
+        const data = await res.json();
+        if (data && data.current_weather) {
+            const temp = Math.round(data.current_weather.temperature);
+            const code = data.current_weather.weathercode;
+            
+            if (code === 0) { weatherIcon = "☀️"; weatherDesc = "맑음"; }
+            else if (code <= 3) { weatherIcon = "⛅"; weatherDesc = "구름 조금"; }
+            else if (code <= 65) { weatherIcon = "🌧️"; weatherDesc = "비"; }
+            else if (code <= 77) { weatherIcon = "❄️"; weatherDesc = "눈"; }
+            else { weatherIcon = "⚡"; weatherDesc = "뇌우"; }
+
+            document.getElementById('temp-input').value = temp;
+            updateSpeedByTemp(temp);
+        }
+    } catch(err) {
+        updateSpeedByTemp(18);
+    }
+}
+
+function initBricks() {
+    bricks = [];
+    for (let r = 0; r < brickRows; r++) {
+        bricks[r] = [];
+        for (let c = 0; c < brickCols; c++) {
+            // 적벽돌 장애물 설정 (#8b2626)
+            const isObstacle = (r === 1 || r === 3) && (c === 2 || c === 7);
+            bricks[r][c] = {
+                x: offsetLeft + c * (brickWidth + brickPadding),
+                y: offsetTop + r * (brickHeight + brickPadding),
+                status: 1,
+                isObstacle: isObstacle
+            };
+        }
+    }
+}
+
+function createBall(x, y, angleDeg = -50) {
+    const rad = (angleDeg * Math.PI) / 180;
+    const baseSpeed = 5.5;
+    const totalSpeed = baseSpeed * speedMultiplier;
+    balls.push({
+        x: x,
+        y: y,
+        radius: 5,
+        baseSpeed: baseSpeed,
+        dx: totalSpeed * Math.cos(rad),
+        dy: totalSpeed * Math.sin(rad)
+    });
+}
+
+function startGame() {
+    document.getElementById('start-modal').style.display = 'none';
+    document.getElementById('game-over-modal').style.display = 'none';
+    score = 0;
+    lives = 3;
+    stage = 1;
+    resetStage();
+    gameRunning = true;
+    requestAnimationFrame(gameLoop);
+}
+
+function restartGame() {
+    startGame();
+}
+
+function resetStage() {
+    initBricks();
+    balls = [];
+    artifacts = [];
+    empWaves = [];
+    createBall(canvas.width / 2, paddle.y - 15, -60);
+    paddle.empGauge = 100;
+}
+
+function triggerArtifactEffect(type) {
+    if (type === 'BOMB') {
+        for (let r = 0; r < brickRows; r++) {
+            for (let c = 0; c < brickCols; c++) {
+                let b = bricks[r][c];
+                if (b.status === 1 && !b.isObstacle) {
+                    if (Math.random() < 0.25) {
+                        b.status = 0;
+                        score += 10;
+                    }
+                }
+            }
+        }
+    } else if (type === 'SLOW') {
+        balls.forEach(b => {
+            b.dx *= 0.65;
+            b.dy *= 0.65;
+        });
+    }
+}
+
+function update() {
+    if (!gameRunning) return;
+
+    if (paddle.empGauge < paddle.maxEmpGauge) {
+        paddle.empGauge += 0.15;
+    }
+
+    if (rightPressed && paddle.x < canvas.width - paddle.width) paddle.x += paddle.speed;
+    if (leftPressed && paddle.x > 0) paddle.x -= paddle.speed;
+
+    // EMP 충격파
+    for (let i = empWaves.length - 1; i >= 0; i--) {
+        let wave = empWaves[i];
+        wave.radius += 7;
+        wave.alpha -= 0.025;
+
+        for (let r = 0; r < brickRows; r++) {
+            for (let c = 0; c < brickCols; c++) {
+                let b = bricks[r][c];
+                if (b.status === 1 && !b.isObstacle) {
+                    let bCenterX = b.x + brickWidth / 2;
+                    let bCenterY = b.y + brickHeight / 2;
+                    let dist = Math.hypot(wave.x - bCenterX, wave.y - bCenterY);
+                    if (dist <= wave.radius) {
+                        b.status = 0;
+                        score += 10;
+                    }
+                }
+            }
+        }
+
+        if (wave.alpha <= 0 || wave.radius >= wave.maxRadius) {
+            empWaves.splice(i, 1);
+        }
+    }
+
+    // 아티팩트 이동
+    for (let i = artifacts.length - 1; i >= 0; i--) {
+        let art = artifacts[i];
+        art.y += art.vy;
+        if (art.y > canvas.height + 20) {
+            artifacts.splice(i, 1);
+        }
+    }
+
+    let newBallsToAdd = 0;
+
+    // 공 이동 & 충돌
+    for (let i = balls.length - 1; i >= 0; i--) {
+        let b = balls[i];
+        b.x += b.dx;
+        b.y += b.dy;
+
+        if (b.x - b.radius < 0 || b.x + b.radius > canvas.width) b.dx = -b.dx;
+        if (b.y - b.radius < 0) b.dy = -b.dy;
+
+        // 패들 충돌
+        if (b.y + b.radius >= paddle.y && b.y - b.radius <= paddle.y + paddle.height) {
+            if (b.x >= paddle.x && b.x <= paddle.x + paddle.width) {
+                let hitPoint = (b.x - (paddle.x + paddle.width / 2)) / (paddle.width / 2);
+                let angle = hitPoint * (Math.PI / 3);
+                let currentSpeed = Math.hypot(b.dx, b.dy);
+                b.dx = currentSpeed * Math.sin(angle);
+                b.dy = -currentSpeed * Math.cos(angle);
+            }
+        }
+
+        // 벽돌 충돌
+        for (let r = 0; r < brickRows; r++) {
+            for (let c = 0; c < brickCols; c++) {
+                let brick = bricks[r][c];
+                if (brick.status === 1) {
+                    if (b.x + b.radius > brick.x && b.x - b.radius < brick.x + brickWidth &&
+                        b.y + b.radius > brick.y && b.y - b.radius < brick.y + brickHeight) {
+                        
+                        b.dy = -b.dy;
+
+                        if (!brick.isObstacle) {
+                            brick.status = 0;
+                            score += 10;
+                            
+                            // [수정] 벽돌 1개당 공 1개만 증식 제한
+                            if (balls.length + newBallsToAdd < 20) {
+                                newBallsToAdd++;
+                            }
+
+                            if (Math.random() < 0.18) {
+                                artifacts.push({
+                                    x: brick.x + brickWidth / 2,
+                                    y: brick.y + brickHeight / 2,
+                                    type: Math.random() < 0.5 ? 'BOMB' : 'SLOW',
+                                    radius: 13,
+                                    vy: 1.6
+                                });
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (b.y - b.radius > canvas.height) {
+            balls.splice(i, 1);
+        }
+    }
+
+    for (let k = 0; k < newBallsToAdd; k++) {
+        createBall(canvas.width / 2, paddle.y - 20, -30 - Math.random() * 120);
+    }
+
+    if (balls.length === 0) {
+        lives--;
+        if (lives <= 0) {
+            gameOver(false);
+        } else {
+            createBall(canvas.width / 2, paddle.y - 15, -60);
+        }
+    }
+
+    let remainingNormalBricks = 0;
+    for (let r = 0; r < brickRows; r++) {
+        for (let c = 0; c < brickCols; c++) {
+            if (bricks[r][c].status === 1 && !bricks[r][c].isObstacle) {
+                remainingNormalBricks++;
+            }
+        }
+    }
+    if (remainingNormalBricks === 0) {
+        stage++;
+        resetStage();
+    }
+
+    document.getElementById('score-display').innerText = `SCORE: ${score}`;
+    document.getElementById('lives-display').innerText = `LIVES: ${lives}`;
+    document.getElementById('stage-display').innerText = `STAGE: ${stage}`;
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 1. 벽돌 그리기
+    for (let r = 0; r < brickRows; r++) {
+        for (let c = 0; c < brickCols; c++) {
+            let b = bricks[r][c];
+            if (b.status === 1) {
+                if (b.isObstacle) {
+                    // 붉은 적벽돌 장애물
+                    ctx.fillStyle = '#8b2626';
+                    ctx.fillRect(b.x, b.y, brickWidth, brickHeight);
+                    ctx.strokeStyle = '#a53838';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(b.x, b.y, brickWidth, brickHeight);
+                } else {
+                    // 일반 무채색 벽돌
+                    ctx.fillStyle = '#3a3a3a';
+                    ctx.fillRect(b.x, b.y, brickWidth, brickHeight);
+                    ctx.strokeStyle = '#555555';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(b.x, b.y, brickWidth, brickHeight);
+                }
+            }
+        }
+    }
+
+    // 2. EMP 충격파
+    empWaves.forEach(wave => {
+        ctx.beginPath();
+        ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255, 255, 255, ${wave.alpha})`;
+        ctx.lineWidth = 4;
+        ctx.stroke();
+    });
+
+    // 3. 밝은 화이트 글로우 패들
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.9)';
+    ctx.shadowBlur = 10;
+    ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
+    ctx.shadowBlur = 0;
+
+    // 4. 패들 하단 EMP 게이지 (패들 아래쪽에 배치)
+    const gaugeY = paddle.y + paddle.height + 6;
+    ctx.fillStyle = '#222222';
+    ctx.fillRect(paddle.x, gaugeY, paddle.width, 4);
+    
+    const fillWidth = (paddle.empGauge / paddle.maxEmpGauge) * paddle.width;
+    ctx.fillStyle = paddle.empGauge >= 100 ? '#00e5ff' : '#aaaaaa';
+    ctx.fillRect(paddle.x, gaugeY, fillWidth, 4);
+
+    // 5. 공
+    balls.forEach(b => {
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.closePath();
+    });
+
+    // 6. 💣 / ⏳ 파스텔 아티팩트
+    artifacts.forEach(art => {
+        ctx.beginPath();
+        ctx.arc(art.x, art.y, art.radius, 0, Math.PI * 2);
+        
+        if (art.type === 'BOMB') {
+            ctx.fillStyle = 'rgba(255, 87, 34, 0.25)';
+            ctx.strokeStyle = '#ff7043';
+            ctx.lineWidth = 2;
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#ff7043';
+            ctx.font = '13px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('💣', art.x, art.y);
+        } else if (art.type === 'SLOW') {
+            ctx.fillStyle = 'rgba(0, 188, 212, 0.25)';
+            ctx.strokeStyle = '#26c6da';
+            ctx.lineWidth = 2;
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#26c6da';
+            ctx.font = '13px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('⏳', art.x, art.y);
+        }
+    });
+}
+
+function gameOver(isWin) {
+    gameRunning = false;
+    document.getElementById('over-title').innerText = isWin ? "STAGE CLEAR!" : "GAME OVER";
+    document.getElementById('over-score').innerText = `FINAL SCORE: ${score}`;
+    document.getElementById('game-over-modal').style.display = 'flex';
+}
+
+function gameLoop() {
+    if (!gameRunning) return;
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+fetchSeoulWeather();
+</script>
+</body>
+</html>
