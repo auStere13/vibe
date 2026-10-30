@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>오늘 우산 챙길까?</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS & JS for Weather Radar Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        skyPastel: '#E0F2FE',
+                        rainPastel: '#DBEAFE',
+                        sunnyPastel: '#FEF3C7',
+                        heavyRainPastel: '#E0E7FF',
+                        accentBlue: '#3B82F6',
+                        accentYellow: '#F59E0B',
+                        accentPurple: '#6366F1'
+                    },
+                    fontFamily: {
+                        sans: ['Noto Sans KR', 'sans-serif'],
+                        cute: ['Gowun Dodum', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 50%, #e0e7ff 100%);
+            min-height: 100vh;
+        }
+
+        /* Floating Animation */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(3deg); }
+        }
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="text-gray-800 flex flex-col min-h-screen relative overflow-x-hidden pb-10">
+
+    <!-- 1. Landing Screen Section -->
+    <section id="landingScreen" class="flex-1 flex flex-col items-center justify-center px-4 py-8 max-w-3xl mx-auto w-full text-center transition-all duration-500">
+        <div class="bg-white/80 backdrop-blur-md rounded-3xl p-8 md:p-12 shadow-xl border border-white/80 flex flex-col items-center gap-6 w-full relative overflow-hidden">
+            
+            <span class="inline-block px-3 py-1 bg-blue-100 text-blue-700 font-bold text-xs rounded-full animate-bounce">
+                🎒 학생 맞춤 등교 날씨 서비스
+            </span>
+
+            <h1 class="text-3xl md:text-5xl font-extrabold font-cute text-sky-900 tracking-tight">
+                오늘 우산 챙길까? ☔
+            </h1>
+            <p class="text-slate-600 text-sm md:text-base max-w-md font-medium">
+                학교 갈 때 우산 가져갈지 고민되나요?<br>실시간 날씨와 비구름 레이더로 똑똑하게 등교 준비해요!
+            </p>
+
+            <!-- Student Illustration -->
+            <div class="relative w-full max-w-sm my-2">
+                <svg class="w-full h-auto drop-shadow-md animate-float" viewBox="0 0 400 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="320" cy="60" r="30" fill="#FBBF24" opacity="0.9"/>
+                    <path d="M70 70C70 58.9543 78.9543 50 90 50C97.808 50 104.532 54.464 107.822 61.0003C110.825 57.2604 115.422 55 120.5 55C129.613 55 137 62.3873 137 71.5C137 72.3389 136.937 73.1631 136.816 73.9682C140.407 76.242 142.5 80.1983 142.5 84.5C142.5 91.4036 136.904 97 130 97H80C74.4772 97 70 92.5228 70 87V70Z" fill="#E0F2FE"/>
+                    <rect x="250" y="110" width="110" height="90" rx="8" fill="#CBD5E1"/>
+                    <rect x="265" y="125" width="20" height="20" rx="3" fill="#38BDF8"/>
+                    <rect x="300" y="125" width="20" height="20" rx="3" fill="#38BDF8"/>
+                    <rect x="265" y="155" width="20" height="20" rx="3" fill="#38BDF8"/>
+                    <rect x="300" y="155" width="20" height="20" rx="3" fill="#38BDF8"/>
+                    <rect x="288" y="175" width="24" height="25" rx="2" fill="#F43F5E"/>
+                    <polygon points="250,110 305,80 360,110" fill="#64748B"/>
+                    <rect x="295" y="65" width="20" height="15" fill="#38BDF8" rx="2"/>
+
+                    <!-- Walking Student 1 -->
+                    <circle cx="110" cy="130" r="14" fill="#FDE047"/>
+                    <path d="M96 130 C96 115, 124 115, 124 130 Z" fill="#F59E0B"/>
+                    <line x1="110" y1="130" x2="110" y2="175" stroke="#78350F" stroke-width="3" stroke-linecap="round"/>
+                    <circle cx="118" cy="148" r="7" fill="#FED7AA"/>
+                    <rect x="112" y="155" width="12" height="22" rx="3" fill="#3B82F6"/>
+                    <rect x="106" y="156" width="8" height="15" rx="2" fill="#F97316"/>
+                    <line x1="115" y1="177" x2="112" y2="195" stroke="#1E293B" stroke-width="4" stroke-linecap="round"/>
+                    <line x1="121" y1="177" x2="124" y2="195" stroke="#1E293B" stroke-width="4" stroke-linecap="round"/>
+
+                    <!-- Walking Student 2 -->
+                    <circle cx="170" cy="145" r="8" fill="#FCA5A5"/>
+                    <path d="M162 142 Q170 135 178 142" stroke="#475569" stroke-width="4" fill="none"/>
+                    <path d="M163 153 L177 153 L181 175 L159 175 Z" fill="#EC4899"/>
+                    <rect x="175" y="155" width="7" height="14" rx="2" fill="#8B5CF6"/>
+                    <line x1="166" y1="175" x2="164" y2="195" stroke="#1E293B" stroke-width="3.5" stroke-linecap="round"/>
+                    <line x1="174" y1="175" x2="178" y2="195" stroke="#1E293B" stroke-width="3.5" stroke-linecap="round"/>
+
+                    <path d="M30 195 Q200 200 370 195" stroke="#94A3B8" stroke-width="4" stroke-linecap="round"/>
+                </svg>
+            </div>
+
+            <!-- Start Button -->
+            <button onclick="startApp()" class="w-full sm:w-auto px-10 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-extrabold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2">
+                <span>시작하기</span>
+                <span class="text-xl">🚀</span>
+            </button>
+        </div>
+    </section>
+
+    <!-- 2. Main App Container -->
+    <div id="appContainer" class="hidden flex-1 w-full flex-col">
+        
+        <!-- Header Controls -->
+        <header class="w-full max-w-4xl mx-auto px-4 pt-6 pb-2">
+            <div class="bg-white/80 backdrop-blur-md rounded-2xl p-4 shadow-sm border border-white/60 flex flex-col md:flex-row items-center justify-between gap-4">
+                
+                <!-- Title -->
+                <div class="flex items-center gap-3 cursor-pointer" onclick="goHome()">
+                    <span class="text-3xl animate-bounce">☂️</span>
+                    <div>
+                        <h1 class="text-2xl md:text-3xl font-bold font-cute text-sky-800 tracking-tight">
+                            오늘 우산 챙길까?
+                        </h1>
+                        <p class="text-xs text-slate-500">학생들을 위한 스마트 등교 날씨 안내서</p>
+                    </div>
+                </div>
+
+                <!-- Test Controller (Requirement 5) -->
+                <div class="w-full md:w-auto bg-slate-50/90 border border-slate-200 rounded-xl p-3 shadow-inner flex flex-col sm:flex-row items-center gap-3">
+                    <div class="flex items-center justify-between w-full sm:w-auto gap-2">
+                        <span class="text-xs font-bold text-slate-600 bg-slate-200/80 px-2 py-1 rounded-md flex items-center gap-1">
+                            🧪 테스트 모드
+                        </span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="testModeToggle" class="sr-only peer" onchange="toggleTestMode()">
+                            <div class="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+                        </label>
+                    </div>
+
+                    <div id="testControls" class="flex items-center gap-2 w-full sm:w-auto opacity-50 pointer-events-none transition-all">
+                        <input type="range" id="testRainSlider" min="0" max="50" step="1" value="0" 
+                               class="w-24 sm:w-28 accent-blue-500 cursor-pointer" oninput="updateTestRain(this.value)">
+                        <div class="text-xs font-semibold whitespace-nowrap w-16 text-right">
+                            <span id="testValueText" class="text-blue-600 font-bold">0</span> mm/h
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 w-full max-w-4xl mx-auto px-4 py-4 flex flex-col gap-6">
+
+            <!-- City Selection Tabs -->
+            <section class="flex flex-col sm:flex-row justify-between items-center gap-3">
+                <div class="bg-white/70 p-1.5 rounded-2xl shadow-sm border border-white/80 inline-flex gap-2 w-full sm:w-auto justify-center">
+                    <button id="tab-seoul" onclick="selectCity('seoul')" 
+                            class="city-tab px-5 py-2 rounded-xl font-bold text-sm transition-all duration-200 flex items-center gap-1.5 bg-blue-500 text-white shadow-md">
+                        <span>🏙️</span> 서울
+                    </button>
+                    <button id="tab-busan" onclick="selectCity('busan')" 
+                            class="city-tab px-5 py-2 rounded-xl font-bold text-sm transition-all duration-200 flex items-center gap-1.5 text-slate-600 hover:bg-white/50">
+                        <span>🌊</span> 부산
+                    </button>
+                    <button id="tab-jeju" onclick="selectCity('jeju')" 
+                            class="city-tab px-5 py-2 rounded-xl font-bold text-sm transition-all duration-200 flex items-center gap-1.5 text-slate-600 hover:bg-white/50">
+                        <span>🌴</span> 제주
+                    </button>
+                </div>
+
+                <!-- Coat Recommendation Modal Trigger Button -->
+                <button onclick="openCoatModal()" class="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-bold text-sm rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 transform hover:-translate-y-0.5">
+                    <span>🧥</span>오늘 뭐 입지? (외투 추천)
+                </button>
+            </section>
+
+            <!-- Main Status Card -->
+            <section id="mainCard" class="relative overflow-hidden bg-white/90 backdrop-blur-lg rounded-3xl p-6 md:p-8 shadow-xl border border-white/80 transition-all duration-500">
+                
+                <!-- Test Banner -->
+                <div id="testBanner" class="hidden mb-4 bg-amber-100 border border-amber-300 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-lg text-center animate-pulse">
+                    ⚙️ 현재 강수량 수동 조절 테스트 모드가 활성화되어 있습니다.
+                </div>
+
+                <!-- Loading State -->
+                <div id="loadingState" class="py-16 flex flex-col items-center justify-center gap-3">
+                    <div class="w-12 h-12 border-4 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                    <p class="text-slate-500 font-medium text-sm">실시간 날씨 정보를 불러오는 중...</p>
+                </div>
+
+                <!-- Error State -->
+                <div id="errorState" class="hidden py-12 flex flex-col items-center justify-center gap-3 text-center">
+                    <span class="text-4xl">⚠️</span>
+                    <p class="text-slate-700 font-bold">날씨 정보를 가져오지 못했어요.</p>
+                    <p class="text-xs text-slate-500">네트워크 연결 상태를 확인한 후 다시 시도해 주세요.</p>
+                    <button onclick="fetchWeatherData()" class="mt-2 px-4 py-2 bg-blue-500 text-white text-xs font-bold rounded-lg shadow hover:bg-blue-600">
+                        다시 시도
+                    </button>
+                </div>
+
+                <!-- Weather Display Area -->
+                <div id="weatherContent" class="hidden flex flex-col items-center text-center">
+
+                    <div id="bigRainEmoji" class="hidden text-5xl mb-2 animate-bounce">
+                        🌧️💧
+                    </div>
+
+                    <div class="relative my-2">
+                        <div id="statusIconCircle" class="w-36 h-36 md:w-44 md:h-44 rounded-full flex items-center justify-center text-7xl md:text-8xl shadow-inner transition-all duration-500 bg-amber-50 border-4 border-amber-100 animate-float">
+                            ☀️
+                        </div>
+                    </div>
+
+                    <!-- Recommendation Text -->
+                    <div class="mt-4 max-w-xl">
+                        <h2 id="recommendationTitle" class="text-2xl md:text-3xl font-extrabold font-cute text-slate-800 mb-2 leading-tight">
+                            우산이 없어도 괜찮아요!
+                        </h2>
+                        <p id="recommendationSub" class="text-sm md:text-base text-slate-600 font-medium px-4 py-2 rounded-xl bg-slate-100/70 inline-block">
+                            비 소식이 없어요. 가벼운 발걸음으로 등교하세요!
+                        </p>
+                    </div>
+
+                    <!-- Cards -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4 w-full mt-8">
+                        <div class="bg-gradient-to-br from-slate-50 to-blue-50/50 p-4 rounded-2xl border border-slate-100 flex flex-col items-center justify-center shadow-sm">
+                            <span class="text-xs text-slate-400 font-semibold mb-1">현재 기온</span>
+                            <div class="text-xl md:text-2xl font-bold text-slate-700">
+                                <span id="tempValue">--</span>°C
+                            </div>
+                        </div>
+
+                        <div class="bg-gradient-to-br from-blue-50 to-indigo-50/50 p-4 rounded-2xl border border-blue-100/60 flex flex-col items-center justify-center shadow-sm">
+                            <span class="text-xs text-blue-500 font-semibold mb-1">최고 강수 확률</span>
+                            <div class="text-xl md:text-2xl font-bold text-blue-700">
+                                <span id="probValue">--</span>%
+                            </div>
+                        </div>
+
+                        <div class="col-span-2 sm:col-span-1 bg-gradient-to-br from-indigo-50 to-sky-50/50 p-4 rounded-2xl border border-indigo-100/60 flex flex-col items-center justify-center shadow-sm">
+                            <span class="text-xs text-indigo-500 font-semibold mb-1">시간당 예상 강수량</span>
+                            <div class="text-xl md:text-2xl font-bold text-indigo-700">
+                                <span id="rainValue">0</span> <span class="text-sm font-normal">mm/h</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hourly Forecast Horizontal Scroll -->
+                    <div class="w-full mt-6 pt-6 border-t border-slate-100">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider text-left flex items-center gap-1">
+                                <span>⏰</span> 시간별 예보 (좌우 스크롤바)
+                            </h3>
+                            <span class="text-[11px] text-slate-400 font-medium">👈 스크롤하여 탐색 👉</span>
+                        </div>
+
+                        <div id="hourlyCardsContainer" class="flex gap-3 overflow-x-auto pb-4 pt-1 px-1 custom-scrollbar snap-x snap-mandatory">
+                            <!-- Hourly weather cards populated dynamically -->
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- Guide Card -->
+            <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Umbrella Guide -->
+                <div class="bg-white/60 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
+                    <h3 class="text-sm font-bold text-slate-700 mb-3 flex items-center gap-1.5">
+                        <span>💡</span> 우산 선택 가이드라인
+                    </h3>
+                    <div class="grid grid-cols-1 gap-2.5 text-xs">
+                        <div class="bg-sky-50/80 p-2.5 rounded-xl border border-sky-100 flex items-center gap-2.5">
+                            <span class="text-xl">☂️</span>
+                            <div>
+                                <span class="font-bold text-sky-800">10mm 미만:</span>
+                                <span class="text-slate-600 ml-1">접이식 단우산으로 충분해요!</span>
+                            </div>
+                        </div>
+                        <div class="bg-indigo-50/80 p-2.5 rounded-xl border border-indigo-100 flex items-center gap-2.5">
+                            <span class="text-xl">🌂</span>
+                            <div>
+                                <span class="font-bold text-indigo-800">10mm~30mm:</span>
+                                <span class="text-slate-600 ml-1">튼튼한 장우산이 필요해요!</span>
+                            </div>
+                        </div>
+                        <div class="bg-purple-50/80 p-2.5 rounded-xl border border-purple-100 flex items-center gap-2.5">
+                            <span class="text-xl">🌧️⚡</span>
+                            <div>
+                                <span class="font-bold text-purple-800">30mm 이상:</span>
+                                <span class="text-slate-600 ml-1">폭우 주의! 외출을 삼가세요.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Outfit Card -->
+                <div class="bg-white/60 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+                            <span>🧥</span> 지금 기온 추천 복장
+                        </h3>
+                        <span id="currentTempBadge" class="text-xs font-extrabold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">--°C</span>
+                    </div>
+
+                    <div id="quickOutfitBox" class="bg-amber-50/80 p-3 rounded-xl border border-amber-200/80 flex items-center gap-3">
+                        <span id="quickOutfitIcon" class="text-3xl">🧥</span>
+                        <div>
+                            <div id="quickOutfitName" class="font-bold text-amber-900 text-sm">기온 정보를 불러오는 중입니다...</div>
+                            <div id="quickOutfitDesc" class="text-xs text-slate-600 mt-0.5">잠시만 기다려 주세요!</div>
+                        </div>
+                    </div>
+
+                    <button onclick="openCoatModal()" class="mt-3 text-xs text-amber-700 font-bold hover:underline flex items-center justify-end gap-1">
+                        전체 기온별 옷차림 가이드 보기 ➔
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Coat Recommendation Modal -->
+    <div id="coatModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 max-w-lg w-full max-h-[85vh] overflow-y-auto custom-scrollbar shadow-2xl border border-white flex flex-col gap-4">
+            
+            <div class="flex items-center justify-between border-b pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">🧥</span>
+                    <h2 class="text-lg font-bold text-slate-800">기온별 외투 & 옷차림 추천</h2>
+                </div>
+                <button onclick="closeCoatModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl px-2">✕</button>
+            </div>
+
+            <!-- Current Temperature Highlight Box -->
+            <div class="bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl p-4 shadow-md flex items-center justify-between">
+                <div>
+                    <span class="text-xs bg-white/20 font-semibold px-2 py-0.5 rounded-full">현재 선택 도시 기온</span>
+                    <div id="modalCurrentTemp" class="text-2xl font-extrabold mt-1">--°C</div>
+                    <div id="modalCurrentRecommend" class="text-xs font-medium text-amber-100 mt-1">추천 옷차림을 계산하는 중...</div>
+                </div>
+                <span id="modalCurrentIcon" class="text-4xl">🧥</span>
+            </div>
+
+            <div class="text-xs font-bold text-slate-500 mt-1">🌡️ 기온 구간별 옷차림 표</div>
+
+            <!-- Clothing List by Temperature -->
+            <div class="space-y-2.5 text-xs">
+                <div id="coat-item-cold" class="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between transition-all">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">❄️</span>
+                        <div>
+                            <div class="font-bold text-slate-800">4°C 이하</div>
+                            <div class="text-slate-600">패딩, 두꺼운 코트, 목도리, 기모제품</div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded-md whitespace-nowrap">헤비아우터</span>
+                </div>
+
+                <div id="coat-item-cool1" class="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between transition-all">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">🧥</span>
+                        <div>
+                            <div class="font-bold text-slate-800">5°C ~ 8°C</div>
+                            <div class="text-slate-600">울 코트, 가죽 자켓, 히트텍, 두꺼운 니트</div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-2 py-1 rounded-md whitespace-nowrap">코트/경량패딩</span>
+                </div>
+
+                <div id="coat-item-cool2" class="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between transition-all">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">🧥</span>
+                        <div>
+                            <div class="font-bold text-slate-800">9°C ~ 11°C</div>
+                            <div class="text-slate-600">트렌치코트, 야상, 자켓, 니트, 청바지</div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-bold bg-sky-100 text-sky-700 px-2 py-1 rounded-md whitespace-nowrap">자켓/트렌치</span>
+                </div>
+
+                <div id="coat-item-mild1" class="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between transition-all">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">👔</span>
+                        <div>
+                            <div class="font-bold text-slate-800">12°C ~ 16°C</div>
+                            <div class="text-slate-600">자켓, 가디건, 바람막이, 맨투맨, 청바지</div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-bold bg-teal-100 text-teal-700 px-2 py-1 rounded-md whitespace-nowrap">가디건/자켓</span>
+                </div>
+
+                <div id="coat-item-mild2" class="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between transition-all">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">👕</span>
+                        <div>
+                            <div class="font-bold text-slate-800">17°C ~ 19°C</div>
+                            <div class="text-slate-600">얇은 가디건, 후드티, 바람막이, 슬랙스</div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md whitespace-nowrap">얇은 가디건</span>
+                </div>
+
+                <div id="coat-item-warm1" class="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between transition-all">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">👚</span>
+                        <div>
+                            <div class="font-bold text-slate-800">20°C ~ 22°C</div>
+                            <div class="text-slate-600">긴팔티, 셔츠, 얇은 후드, 면바지</div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-bold bg-green-100 text-green-700 px-2 py-1 rounded-md whitespace-nowrap">긴팔티/셔츠</span>
+                </div>
+
+                <div id="coat-item-warm2" class="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between transition-all">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">👕</span>
+                        <div>
+                            <div class="font-bold text-slate-800">23°C ~ 27°C</div>
+                            <div class="text-slate-600">반팔티, 얇은 셔츠, 반바지, 면바지</div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-1 rounded-md whitespace-nowrap">반팔티</span>
+                </div>
+
+                <div id="coat-item-hot" class="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between transition-all">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">🎽</span>
+                        <div>
+                            <div class="font-bold text-slate-800">28°C 이상</div>
+                            <div class="text-slate-600">민소매, 반팔, 반바지, 린넨 소재 옷</div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-bold bg-red-100 text-red-700 px-2 py-1 rounded-md whitespace-nowrap">시원한 민소매/반팔</span>
+                </div>
+            </div>
+
+            <button onclick="closeCoatModal()" class="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all mt-2">
+                닫기
+            </button>
+        </div>
+    </div>
+
+    <!-- Complete JavaScript Logic -->
+    <script>
+        const CITIES = {
+            seoul: { name: '서울', lat: 37.5665, lon: 126.9780 },
+            busan: { name: '부산', lat: 35.1796, lon: 129.0756 },
+            jeju: { name: '제주', lat: 33.4996, lon: 126.5312 }
+        };
+
+        let currentCity = 'seoul';
+        let weatherCache = {};
+        let isTestMode = false;
+        let testRainAmount = 0;
+
+        function showLoading(isLoading) {
+            const loadingState = document.getElementById('loadingState');
+            const weatherContent = document.getElementById('weatherContent');
+            if (loadingState) {
+                if (isLoading) {
+                    loadingState.classList.remove('hidden');
+                    if (weatherContent) weatherContent.classList.add('hidden');
+                } else {
+                    loadingState.classList.add('hidden');
+                    if (weatherContent) weatherContent.classList.remove('hidden');
+                }
+            }
+        }
+
+        function showError(isErr) {
+            const errorState = document.getElementById('errorState');
+            const weatherContent = document.getElementById('weatherContent');
+            if (errorState) {
+                if (isErr) {
+                    errorState.classList.remove('hidden');
+                    if (weatherContent) weatherContent.classList.add('hidden');
+                } else {
+                    errorState.classList.add('hidden');
+                }
+            }
+        }
+
+        function startApp() {
+            document.getElementById('landingScreen').classList.add('hidden');
+            document.getElementById('appContainer').classList.remove('hidden');
+            document.getElementById('appContainer').classList.add('flex');
+            fetchWeatherData();
+        }
+
+        function goHome() {
+            document.getElementById('appContainer').classList.add('hidden');
+            document.getElementById('appContainer').classList.remove('flex');
+            document.getElementById('landingScreen').classList.remove('hidden');
+        }
+
+        function selectCity(cityKey) {
+            if (currentCity === cityKey) return;
+            currentCity = cityKey;
+
+            ['seoul', 'busan', 'jeju'].forEach(key => {
+                const tab = document.getElementById(`tab-${key}`);
+                if (key === cityKey) {
+                    tab.className = 'city-tab px-5 py-2 rounded-xl font-bold text-sm transition-all duration-200 flex items-center gap-1.5 bg-blue-500 text-white shadow-md';
+                } else {
+                    tab.className = 'city-tab px-5 py-2 rounded-xl font-bold text-sm transition-all duration-200 flex items-center gap-1.5 text-slate-600 hover:bg-white/50';
+                }
+            });
+
+            if (weatherCache[currentCity]) {
+                renderUI();
+            } else {
+                fetchWeatherData();
+            }
+        }
+
+        function toggleTestMode() {
+            const toggle = document.getElementById('testModeToggle');
+            const testControls = document.getElementById('testControls');
+            const testBanner = document.getElementById('testBanner');
+            
+            isTestMode = toggle ? toggle.checked : false;
+
+            if (isTestMode) {
+                if (testControls) {
+                    testControls.classList.remove('opacity-50', 'pointer-events-none');
+                }
+                if (testBanner) testBanner.classList.remove('hidden');
+            } else {
+                if (testControls) {
+                    testControls.classList.add('opacity-50', 'pointer-events-none');
+                }
+                if (testBanner) testBanner.classList.add('hidden');
+            }
+            renderUI();
+        }
+
+        function updateTestRain(val) {
+            testRainAmount = parseFloat(val);
+            const valText = document.getElementById('testValueText');
+            if (valText) valText.innerText = testRainAmount;
+            renderUI();
+        }
+
+        async function fetchWeatherData() {
+            showLoading(true);
+            showError(false);
+
+            const city = CITIES[currentCity];
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=temperature_2m,precipitation&hourly=temperature_2m,precipitation_probability,precipitation&timezone=Asia%2FTokyo&forecast_days=1`;
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('API Response Error');
+                const data = await response.json();
+
+                const temp = Math.round(data.current.temperature_2m);
+                const hourlyRain = data.hourly.precipitation.slice(0, 12);
+                const hourlyProb = data.hourly.precipitation_probability.slice(0, 12);
+                const hourlyTemp = data.hourly.temperature_2m.slice(0, 12);
+
+                const maxProb = Math.max(...hourlyProb, 0);
+                const rainAmount = data.current.precipitation || Math.max(...hourlyRain, 0);
+
+                const hourly = [];
+                const currentHour = new Date().getHours();
+                for (let i = 0; i < 12; i++) {
+                    hourly.push({
+                        time: (currentHour + i) % 24,
+                        temp: Math.round(hourlyTemp[i] || temp),
+                        prob: hourlyProb[i] || 0,
+                        rain: hourlyRain[i] || 0
+                    });
+                }
+
+                weatherCache[currentCity] = {
+                    temp,
+                    maxProb,
+                    rainAmount,
+                    hourly
+                };
+
+                showLoading(false);
+                renderUI();
+            } catch (err) {
+                console.error("Failed to fetch weather data:", err);
+                showLoading(false);
+                showError(true);
+            }
+        }
+
+        function openCoatModal() {
+            document.getElementById('coatModal').classList.remove('hidden');
+        }
+
+        function closeCoatModal() {
+            document.getElementById('coatModal').classList.add('hidden');
+        }
+
+        function getCoatRecommendation(temp) {
+            if (typeof temp !== 'number' || isNaN(temp)) {
+                return {
+                    key: 'unknown',
+                    icon: '🧥',
+                    name: '기온 정보 없음',
+                    desc: '날씨 정보를 불러오는 중입니다.',
+                    outer: '가방 속 가디건'
+                };
+            }
+
+            if (temp <= 4) {
+                return { key: 'cold', icon: '❄️', name: '롱패딩 & 두꺼운 아우터', desc: '패딩, 두꺼운 코트, 목도리 필수!', outer: '헤비 패딩 / 울 코트' };
+            } else if (temp <= 8) {
+                return { key: 'cool1', icon: '🧥', name: '울 코트 & 경량패딩', desc: '코트, 가죽자켓, 히트텍, 두꺼운 니트', outer: '울 코트 / 경량패딩' };
+            } else if (temp <= 11) {
+                return { key: 'cool2', icon: '🧥', name: '트렌치코트 & 야상', desc: '트렌치코트, 자켓, 야상, 니트', outer: '트렌치코트 / 자켓' };
+            } else if (temp <= 16) {
+                return { key: 'mild1', icon: '👔', name: '자켓 & 가디건', desc: '자켓, 가디건, 바람막이, 맨투맨', outer: '자켓 / 가디건' };
+            } else if (temp <= 19) {
+                return { key: 'mild2', icon: '👕', name: '얇은 가디건 & 바람막이', desc: '얇은 가디건, 후드티, 바람막이', outer: '얇은 가디건 / 바람막이' };
+            } else if (temp <= 22) {
+                return { key: 'warm1', icon: '👚', name: '긴팔티 & 셔츠', desc: '외투 없이 긴팔티, 셔츠, 면바지', outer: '외투 미착용 (긴팔티)' };
+            } else if (temp <= 27) {
+                return { key: 'warm2', icon: '👕', name: '시원한 반팔티', desc: '반팔티, 얇은 셔츠, 반바지', outer: '외투 미착용 (반팔티)' };
+            } else {
+                return { key: 'hot', icon: '🎽', name: '민소매 & 린넨 반팔', desc: '민소매, 반팔, 반바지, 린넨 소재 옷', outer: '외투 미착용 (시원한 옷)' };
+            }
+        }
+
+        function renderUI() {
+            const data = weatherCache[currentCity] || { temp: '--', maxProb: 0, rainAmount: 0, hourly: [] };
+            
+            const temp = data.temp;
+            const prob = data.maxProb;
+            const rainVal = isTestMode ? testRainAmount : data.rainAmount;
+
+            document.getElementById('tempValue').innerText = temp;
+            document.getElementById('probValue').innerText = prob;
+            document.getElementById('rainValue').innerText = rainVal;
+
+            // Outfit Recommendation Update
+            const coatInfo = getCoatRecommendation(temp);
+            
+            document.getElementById('currentTempBadge').innerText = `${temp}°C`;
+            document.getElementById('quickOutfitIcon').innerText = coatInfo.icon;
+            document.getElementById('quickOutfitName').innerText = coatInfo.name;
+            document.getElementById('quickOutfitDesc').innerText = coatInfo.desc;
+
+            document.getElementById('modalCurrentTemp').innerText = `${temp}°C`;
+            document.getElementById('modalCurrentRecommend').innerText = `추천: ${coatInfo.name} (${coatInfo.desc})`;
+            document.getElementById('modalCurrentIcon').innerText = coatInfo.icon;
+
+            // Highlight corresponding row in coat modal
+            const coatKeys = ['cold', 'cool1', 'cool2', 'mild1', 'mild2', 'warm1', 'warm2', 'hot'];
+            coatKeys.forEach(k => {
+                const el = document.getElementById(`coat-item-${k}`);
+                if (el) {
+                    if (k === coatInfo.key) {
+                        el.className = 'p-3 rounded-xl border-2 border-amber-400 bg-amber-50/90 flex items-center justify-between transition-all shadow-sm';
+                    } else {
+                        el.className = 'p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between transition-all opacity-80';
+                    }
+                }
+            });
+
+            const iconCircle = document.getElementById('statusIconCircle');
+            const bigRainEmoji = document.getElementById('bigRainEmoji');
+            const title = document.getElementById('recommendationTitle');
+            const sub = document.getElementById('recommendationSub');
+
+            if (rainVal === 0) {
+                bigRainEmoji.classList.add('hidden');
+                iconCircle.innerText = '☀️';
+                iconCircle.className = 'w-36 h-36 md:w-44 md:h-44 rounded-full flex items-center justify-center text-7xl md:text-8xl shadow-inner transition-all duration-500 bg-amber-50 border-4 border-amber-100 animate-float';
+                title.innerText = '우산이 없어도 괜찮아요!';
+                title.className = 'text-2xl md:text-3xl font-extrabold font-cute text-slate-800 mb-2 leading-tight';
+                sub.innerText = '비 소식이 없어요. 가벼운 발걸음으로 등교하세요!';
+            } else {
+                bigRainEmoji.classList.remove('hidden');
+
+                if (rainVal < 10) {
+                    iconCircle.innerText = '☂️';
+                    iconCircle.className = 'w-36 h-36 md:w-44 md:h-44 rounded-full flex items-center justify-center text-7xl md:text-8xl shadow-inner transition-all duration-500 bg-sky-100 border-4 border-sky-200 animate-float';
+                    title.innerText = '접이식 단우산 하나 챙기세요!';
+                    title.className = 'text-2xl md:text-3xl font-extrabold font-cute text-sky-800 mb-2 leading-tight';
+                    sub.innerText = '약한 비가 내려요. 가방에 쏙 들어가는 단우산으로 충분해요!';
+                } else if (rainVal < 30) {
+                    iconCircle.innerText = '🌂';
+                    iconCircle.className = 'w-36 h-36 md:w-44 md:h-44 rounded-full flex items-center justify-center text-7xl md:text-8xl shadow-inner transition-all duration-500 bg-indigo-100 border-4 border-indigo-200 animate-float';
+                    title.innerText = '튼튼한 장우산이 필요해요!';
+                    title.className = 'text-2xl md:text-3xl font-extrabold font-cute text-indigo-900 mb-2 leading-tight';
+                    sub.innerText = '제법 많은 비가 내려요. 바람에 뒤집히지 않는 장우산을 챙기세요!';
+                } else {
+                    iconCircle.innerText = '🌧️⚡';
+                    iconCircle.className = 'w-36 h-36 md:w-44 md:h-44 rounded-full flex items-center justify-center text-7xl md:text-8xl shadow-inner transition-all duration-500 bg-purple-100 border-4 border-purple-200 animate-float';
+                    title.innerText = '⚠️ 폭우 주의! 외출을 자제하세요!';
+                    title.className = 'text-2xl md:text-3xl font-extrabold font-cute text-purple-900 mb-2 leading-tight';
+                    sub.innerText = '매우 강한 비가 쏟아집니다. 위험하니 외출을 삼가고 안전에 주의하세요!';
+                }
+            }
+
+            renderHourlyList(data.hourly);
+        }
+
+        function renderHourlyList(hourlyData) {
+            const container = document.getElementById('hourlyCardsContainer');
+            if (!container) return;
+
+            if (!hourlyData || hourlyData.length === 0) {
+                container.innerHTML = '<div class="text-xs text-slate-400 py-4 w-full text-center">시간별 예보 정보가 없습니다.</div>';
+                return;
+            }
+
+            container.innerHTML = hourlyData.map((item, idx) => {
+                const rain = isTestMode ? testRainAmount : item.rain;
+                let icon = '☀️';
+                if (rain > 0) {
+                    if (rain < 10) icon = '☂️';
+                    else if (rain < 30) icon = '🌂';
+                    else icon = '🌧️';
+                }
+
+                return `
+                    <div class="snap-start flex-shrink-0 w-24 bg-slate-50/90 rounded-2xl p-3 border border-slate-100 flex flex-col items-center gap-1.5 shadow-sm text-center">
+                        <span class="text-xs font-bold text-slate-500">${idx === 0 ? '지금' : item.time + '시'}</span>
+                        <span class="text-2xl my-0.5">${icon}</span>
+                        <span class="text-xs font-bold text-blue-600">${item.prob}%</span>
+                        <span class="text-[11px] font-medium text-slate-400">${rain}mm/h</span>
+                    </div>
+                `;
+            }).join('');
+        }
+    </script>
+</body>
+</html>
